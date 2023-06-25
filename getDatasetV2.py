@@ -28,20 +28,28 @@ df2 = pd.DataFrame()
 
 collumns_to_stack = []
 
+answer = {}
 
 for index, row in tqdm(df.iterrows()):
     if row['message_id'] in set_of_root_nodes:
         collumns_to_stack.append(row)
     if row['parent_id'] in set_of_root_nodes:
-        collumns_to_stack.append(row)
+        answer[row['parent_id']] = row['message_id']
+        # add new collumn text_answer 
+        collumns_to_stack[-1]['text_answer'] = row['text']
         
 
 df2 = pd.concat(collumns_to_stack, axis=1).T
 
-columns=['message_id', 'parent_id', 'created_date', 'text', 'role', 'lang' , 'message_tree_id']
+columns=['message_id', 'parent_id', 'created_date', 'text', 'role', 'lang' , 'message_tree_id','text_answer']
 
 # take only columns from columns list'
 df2 = df2[columns]
+
+# take only rows with lang == 'en'
+df2 = df2[df2['lang'] == 'en']
+
+
 # save to csv
 df2.to_csv('oasst1-train-tree.csv', index=False)
 
