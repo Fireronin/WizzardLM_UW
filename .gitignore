@@ -160,3 +160,6 @@ cython_debug/
 #.idea/
 
 oasst1-train.csv
+evolved_prompts/*
+bad_prompts/*
+openai_config.json

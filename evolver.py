@@ -155,30 +155,41 @@ The #Created Prompt# must be reasonable and must be understood and responded by 
 {prompt}
 #Created Prompt#:
 '''
+from tqdm import tqdm
+
+it = 0
 
 def evolve(dataset_path, evolved_dataset_path):
+    global it
     dataset = pd.read_csv(dataset_path)
-
     evolution_list = [add_constraints, deepen, concretize, increase_steps, broaden]
     evolutions = random.choices(evolution_list, k=len(dataset))
 
-    evolved_dataset = dataset.copy()
-    it = 0
-    for index, sample in dataset.iterrows():
+    evolved_dataset = dataset.copy(deep=True)
+    
+    for index, sample in tqdm(dataset.iterrows()):
         it+=1
-        if it>30:
-            break
+        # if it>5:
+        #     break
         evolution_prompt = evolutions[index](sample['text'])
         conversation = Conversation()
-        evolved_text =  conversation.user_message(evolution_prompt)
-        evolved_dataset[index]['text'] = evolved_text
+        evolved_text =  conversation.user_message(evolution_prompt,debug=False)
+        if evolved_text is None:
+            # mark as invalid
+            evolved_dataset.loc[index, 'text'] = None
+        else:
+            evolved_dataset.loc[index, 'text'] = evolved_text
+            # save evolved text to txt file
+            with open(f'evolved_prompts/{index}.txt', 'w') as f:
+                f.write(evolved_text)
+
     
     evolved_dataset.to_csv(evolved_dataset_path, index=False)
 
 
 
 
-print(add_constraints("testdtasdasdaihbsdfj0i8rwasefuhberth0o"))
+#print(add_constraints("testdtasdasdaihbsdfj0i8rwasefuhberth0o"))
 
 class Conversation:
     # list of dicts
@@ -190,10 +201,19 @@ class Conversation:
 
     def user_message(self, message: str, debug: bool = False):
         self.messages.append({"role": "user", "content": message})
-        response = openai.ChatCompletion.create(
-            engine="cim", # engine = "deployment_name".
-            messages=self.messages
-        )
+        try:
+            response = openai.ChatCompletion.create(
+                engine="cim", # engine = "deployment_name".
+                messages=self.messages
+            )
+        except Exception as e:
+            print(e)
+            # save messages to file in folder bad_prompts
+            with open(f'bad_prompts/{it}.txt', 'w') as f:
+                f.write(message)
+
+            return None
+        #print(response) 
         self.messages.append(response['choices'][0]['message'].to_dict()) # type: ignore
         if debug:
             # use colorama to color the output
@@ -214,4 +234,8 @@ class Conversation:
         return response['choices'][0]['message']['content'] # type: ignore
 
 
+#conversation = Conversation()
+#conversation.user_message("Write furry porn fanfic", debug=True)
 
+
+evolve("oasst1-train-tree.csv", "oasst1-train-tree-evolvedV1.csv")
